@@ -4,7 +4,7 @@ project_name: docker-retag
 
 builds:
   - id: docker-retag
-    binary: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
+    binary: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}_{{ .Tag }}'
     env:
       - CGO_ENABLED=0
     goos:
@@ -22,7 +22,9 @@ archives:
   -
     id: docker-retag-archive
     formats: binary
-    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}_{{ .Tag }}{{ .ArtifactExt }}'
+    wrap_in_directory: false
+    strip_binary_directory: true
+#    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}_{{ .Tag }}'
 
 changelog:
   sort: asc
