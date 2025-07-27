@@ -21,8 +21,8 @@ builds:
 archives:
   -
     id: docker-retag-archive
-    format: binary
-    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ .Ext }}'
+    formats: binary
+    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}_{{ .Tag }}{{ .ArtifactExt }}'
 
 changelog:
   sort: asc
