@@ -19,9 +19,10 @@ builds:
       - -s -w
 
 archives:
-  -id: docker-retag-archive
-   format: binary
-   name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ .Ext }}'
+  -
+    id: docker-retag-archive
+    format: binary
+    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ .Ext }}'
 
 changelog:
   sort: asc
