@@ -19,10 +19,25 @@ runs:
         REPO="abgoyal/docker-retag"
         LATEST_API_URL="https://api.github.com/repos/$REPO/releases/latest"
 
-        # Determine runner OS and architecture
-        RUNNER_OS=$(uname -s)
-        RUNNER_ARCH=$(uname -m)
+        echo "Fetching latest release data from $REPO..."
+        # Store the API response to avoid multiple calls
+        API_RESPONSE=$(curl -s $LATEST_API_URL)
 
+        # Extract the tag name (e.g., "v0.0.6") from the release data
+        TAG=$(echo "$API_RESPONSE" | jq -r ".tag_name")
+        if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+          echo "Error: Could not determine latest release tag."
+          exit 1
+        fi
+
+        # Determine runner OS and architecture
+        RUNNER_OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        # Handle Windows runners which may report MINGW or MSYS
+        if [[ "$RUNNER_OS" == "mingw"* || "$RUNNER_OS" == "msys"* ]]; then
+          RUNNER_OS="windows"
+        fi
+
+        RUNNER_ARCH=$(uname -m)
         if [ "$RUNNER_ARCH" = "x86_64" ]; then
           ARCH="amd64"
         elif [ "$RUNNER_ARCH" = "aarch64" ]; then
@@ -32,20 +47,15 @@ runs:
           exit 1
         fi
 
-        # Handle .exe for Windows
-        if [ "$RUNNER_OS" = "Linux" ]; then
-            ASSET_NAME="docker-retag_linux_${ARCH}"
-        elif [ "$RUNNER_OS" = "Darwin" ]; then
-            ASSET_NAME="docker-retag_darwin_${ARCH}"
-        elif [[ "$RUNNER_OS" == *"MINGW"* || "$RUNNER_OS" == *"MSYS"* ]]; then
-            ASSET_NAME="docker-retag_windows_${ARCH}.exe"
-        else
-            echo "Unsupported OS: $RUNNER_OS"
-            exit 1
+        # Construct the asset name based on the final release format
+        # Format: docker-retag_OS_ARCH_TAG
+        ASSET_NAME="docker-retag_${RUNNER_OS}_${ARCH}_${TAG}"
+        if [ "$RUNNER_OS" = "windows" ]; then
+            ASSET_NAME="${ASSET_NAME}.exe"
         fi
 
-        echo "Fetching download URL for $ASSET_NAME from $REPO..."
-        DOWNLOAD_URL=$(curl -s $LATEST_API_URL | jq -r ".assets[] | select(.name == \"$ASSET_NAME\") | .browser_download_url")
+        echo "Searching for asset named: $ASSET_NAME"
+        DOWNLOAD_URL=$(echo "$API_RESPONSE" | jq -r ".assets[] | select(.name == \"$ASSET_NAME\") | .browser_download_url")
 
         if [[ -z "$DOWNLOAD_URL" || "$DOWNLOAD_URL" == "null" ]]; then
           echo "Error: Could not find release asset named '$ASSET_NAME'."
@@ -53,15 +63,13 @@ runs:
         fi
 
         echo "Downloading from $DOWNLOAD_URL..."
-
+        # Download the binary and name it 'docker-retag' for execution
         curl -sL -o docker-retag "$DOWNLOAD_URL"
 
         # Make executable (not needed for .exe on Windows)
-        if [[ "$RUNNER_OS" != *"MINGW"* && "$RUNNER_OS" != *"MSYS"* ]]; then
+        if [ "$RUNNER_OS" != "windows" ]; then
           chmod +x ./docker-retag
         fi
 
         echo "Running docker-retag tool..."
-
         ./docker-retag "${{ inputs.source_image }}" "${{ inputs.new_tag }}"
-
