@@ -1,11 +1,11 @@
 # .goreleaser.yml
 version: 2
 project_name: docker-retag
-before:
-  hooks:
-    - go mod tidy
+
 builds:
-  - env:
+  - id: docker-retag
+    binary: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -15,9 +15,14 @@ builds:
       - amd64
       - arm64
     main: ./
-    binary: docker-retag
     ldflags:
       - -s -w
+
+archives:
+  -id: docker-retag-archive
+   format: binary
+   name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ .Ext }}'
+
 changelog:
   sort: asc
   filters:
