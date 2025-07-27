@@ -1,0 +1,67 @@
+name: 'Remote Image Retag'
+description: 'Idempotently and efficiently points a remote container tag to a new source image manifest.'
+author: 'Abhishek Goyal'
+
+inputs:
+  source_image:
+    description: 'The full name of the source image, including its unique tag (e.g., my-registry/my-image:build-12345).'
+    required: true
+  new_tag:
+    description: 'The floating tag to point at the source image (e.g., production, staging).'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download and Execute docker-retag Tool
+      shell: bash
+      run: |
+        REPO="abgoyal/docker-retag"
+        LATEST_API_URL="https://api.github.com/repos/$REPO/releases/latest"
+
+        # Determine runner OS and architecture
+        RUNNER_OS=$(uname -s)
+        RUNNER_ARCH=$(uname -m)
+
+        if [ "$RUNNER_ARCH" = "x86_64" ]; then
+          ARCH="amd64"
+        elif [ "$RUNNER_ARCH" = "aarch64" ]; then
+          ARCH="arm64"
+        else
+          echo "Unsupported architecture: $RUNNER_ARCH"
+          exit 1
+        fi
+
+        # Handle .exe for Windows
+        if [ "$RUNNER_OS" = "Linux" ]; then
+            ASSET_NAME="docker-retag_linux_${ARCH}"
+        elif [ "$RUNNER_OS" = "Darwin" ]; then
+            ASSET_NAME="docker-retag_darwin_${ARCH}"
+        elif [[ "$RUNNER_OS" == *"MINGW"* || "$RUNNER_OS" == *"MSYS"* ]]; then
+            ASSET_NAME="docker-retag_windows_${ARCH}.exe"
+        else
+            echo "Unsupported OS: $RUNNER_OS"
+            exit 1
+        fi
+
+        echo "Fetching download URL for $ASSET_NAME from $REPO..."
+        DOWNLOAD_URL=$(curl -s $LATEST_API_URL | jq -r ".assets[] | select(.name == \"$ASSET_NAME\") | .browser_download_url")
+
+        if [[ -z "$DOWNLOAD_URL" || "$DOWNLOAD_URL" == "null" ]]; then
+          echo "Error: Could not find release asset named '$ASSET_NAME'."
+          exit 1
+        fi
+
+        echo "Downloading from $DOWNLOAD_URL..."
+
+        curl -sL -o docker-retag "$DOWNLOAD_URL"
+
+        # Make executable (not needed for .exe on Windows)
+        if [[ "$RUNNER_OS" != *"MINGW"* && "$RUNNER_OS" != *"MSYS"* ]]; then
+          chmod +x ./docker-retag
+        fi
+
+        echo "Running docker-retag tool..."
+
+        ./docker-retag "${{ inputs.source_image }}" "${{ inputs.new_tag }}"
+
