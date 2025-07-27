@@ -24,7 +24,7 @@ archives:
     formats: binary
     wrap_in_directory: false
     strip_binary_directory: true
-#    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}_{{ .Tag }}'
+    name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}_{{ .Tag }}'
 
 changelog:
   sort: asc
