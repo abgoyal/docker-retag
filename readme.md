@@ -1,6 +1,6 @@
 # Remote Image Retag (`docker-retag`)
 
-`docker-retag` is a lightweight, single-purpose CLI tool and GitHub Action to efficiently point a "floating tag" (like `:production` or `:staging`) to a new image manifest in a remote registry. 
+`docker-retag` is a lightweight, single-purpose CLI tool and GitHub Action to point a "floating tag" (like `:production` or `:staging`) to a new image manifest in a remote registry. 
 It performs this operation without pulling the image locally.
 
 It is idempotent, fast, and designed for CI/CD automation.
@@ -10,7 +10,7 @@ It is idempotent, fast, and designed for CI/CD automation.
 -   **Efficient:** Updates tags in seconds by transferring only kilobytes of manifest data.
 -   **Idempotent:** If the tag already points to the correct image, the tool reports success and does nothing.
 -   **Seamless Authentication:** Automatically uses credentials from official login actions for ECR, GCR, Docker Hub, and more.
--   **CI/CD Native:** Provides clear, single-line output with status emojis (✅/❌) and rich audit details like creation timestamps.
+-   **CI/CD Native:** Provides clear, single-line output, with audit details like creation timestamps, ideal for CI/CD.
 
 ## How to Use as a GitHub Action
 
@@ -24,7 +24,6 @@ The pattern is always the same:
 
 ## Authentication & Usage Examples
 
-Here are comprehensive, copy-pasteable examples for virtually every scenario.
 
 ### **1. Amazon ECR (Elastic Container Registry)**
 

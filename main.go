@@ -13,10 +13,8 @@ import (
 	"github.com/xeonx/timeago"
 )
 
-// main is the entry point of the application.
 func main() {
 	var rootCmd = &cobra.Command{
-		// CORRECTED: Updated the command name for help text.
 		Use:   "docker-retag <source-image> <new-tag>",
 		Short: "An idempotent tool to point a remote container tag at a new source image.",
 		Long: `docker-retag efficiently updates a remote tag (e.g., :prod, :staging) to point
@@ -36,14 +34,14 @@ It is designed for CI/CD pipelines:
 	}
 }
 
-// retagImage contains the core logic for idempotently retagging the image.
+// core
 func retagImage(cmd *cobra.Command, args []string) {
 	sourceImageStr := args[0]
 	newTag := args[1]
 
 	sourceRef, err := name.ParseReference(sourceImageStr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "❌ Error: Invalid source image reference '%s': %v\n", sourceImageStr, err)
+		fmt.Fprintf(os.Stderr, "[FAIL] Error: Invalid source image reference '%s': %v\n", sourceImageStr, err)
 		os.Exit(1)
 	}
 	newRef := sourceRef.Context().Tag(newTag)
@@ -51,7 +49,7 @@ func retagImage(cmd *cobra.Command, args []string) {
 	// Step 1: Get the full metadata for the source image. This MUST succeed.
 	sourceImg, err := remote.Image(sourceRef)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "❌ Error: Source image '%s' not found or inaccessible: %v\n", sourceImageStr, err)
+		fmt.Fprintf(os.Stderr, "[FAIL] Error: Source image '%s' not found or inaccessible: %v\n", sourceImageStr, err)
 		os.Exit(1)
 	}
 	sourceDigest, sourceTimestamp := getImageDetails(sourceImg)
@@ -66,32 +64,32 @@ func retagImage(cmd *cobra.Command, args []string) {
 
 	// Step 3: Check for idempotency.
 	if err == nil && sourceDigest.String() == destDigest.String() {
-		fmt.Printf("✅ Tag '%s' already points to the correct image (digest %s, created %s). No action needed.\n", newTag, sourceDigest.String(), formatTime(sourceTimestamp))
+		fmt.Printf("[OK] Tag '%s' already points to the correct image (digest %s, created %s). No action needed.\n", newTag, sourceDigest.String(), formatTime(sourceTimestamp))
 		return
 	}
 
 	// Step 4: Perform the tag operation. This will create or overwrite the tag.
 	if err := crane.Tag(sourceImageStr, newTag); err != nil {
-		fmt.Fprintf(os.Stderr, "❌ Error: Failed to point tag '%s' to new image: %v\n", newTag, err)
+		fmt.Fprintf(os.Stderr, "[FAIL] Error: Failed to point tag '%s' to new image: %v\n", newTag, err)
 		os.Exit(1)
 	}
 
-	// Step 5: Construct the final, rich success message.
+	// Step 5: Final, message.
 	fromMsg := ""
 	if err == nil {
 		fromMsg = fmt.Sprintf(" (was %s, created %s)", destDigest.String(), formatTime(destTimestamp))
 	}
-	fmt.Printf("✅ Successfully pointed tag '%s' to %s (created %s)%s.\n", newTag, sourceDigest.String(), formatTime(sourceTimestamp), fromMsg)
+	fmt.Printf("[OK] Successfully pointed tag '%s' to %s (created %s)%s.\n", newTag, sourceDigest.String(), formatTime(sourceTimestamp), fromMsg)
 }
 
-// getImageDetails extracts the digest and creation timestamp from a v1.Image object.
+// extract the digest and creation timestamp
 func getImageDetails(img v1.Image) (v1.Hash, time.Time) {
 	digest, _ := img.Digest()
 	configFile, _ := img.ConfigFile()
 	return digest, configFile.Created.Time
 }
 
-// formatTime converts a time.Time into a human-friendly string, handling zero values.
+// human-friendly time string
 func formatTime(t time.Time) string {
 	if t.IsZero() {
 		return "unknown"

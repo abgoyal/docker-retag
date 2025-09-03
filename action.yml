@@ -1,6 +1,6 @@
 name: 'Remote Image Retag'
-description: 'Idempotently and efficiently points a remote container tag to a new source image manifest.'
-author: 'Abhishek Goyal'
+description: '(Re)Point a remote docker container tag to a new source image manifest, without pulling the image.'
+author: '@abgoyal'
 
 inputs:
   source_image:
