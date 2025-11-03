@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -47,7 +48,7 @@ func retagImage(cmd *cobra.Command, args []string) {
 	newRef := sourceRef.Context().Tag(newTag)
 
 	// Step 1: Get the full metadata for the source image. This MUST succeed.
-	sourceImg, err := remote.Image(sourceRef)
+	sourceImg, err := remote.Image(sourceRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[FAIL] Error: Source image '%s' not found or inaccessible: %v\n", sourceImageStr, err)
 		os.Exit(1)
@@ -55,7 +56,7 @@ func retagImage(cmd *cobra.Command, args []string) {
 	sourceDigest, sourceTimestamp := getImageDetails(sourceImg)
 
 	// Step 2: Get metadata for the destination tag. This may or may not exist.
-	destImg, err := remote.Image(newRef)
+	destImg, err := remote.Image(newRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	var destDigest v1.Hash
 	var destTimestamp time.Time
 	if err == nil {
@@ -69,7 +70,7 @@ func retagImage(cmd *cobra.Command, args []string) {
 	}
 
 	// Step 4: Perform the tag operation. This will create or overwrite the tag.
-	if err := crane.Tag(sourceImageStr, newTag); err != nil {
+	if err := crane.Tag(sourceImageStr, newTag, crane.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
 		fmt.Fprintf(os.Stderr, "[FAIL] Error: Failed to point tag '%s' to new image: %v\n", newTag, err)
 		os.Exit(1)
 	}
