@@ -11,7 +11,6 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
-	"github.com/xeonx/timeago"
 )
 
 func main() {
@@ -65,7 +64,7 @@ func retagImage(cmd *cobra.Command, args []string) {
 
 	// Step 3: Check for idempotency.
 	if err == nil && sourceDigest.String() == destDigest.String() {
-		fmt.Printf("[OK] Tag '%s' already points to the correct image (digest %s, created %s). No action needed.\n", newTag, sourceDigest.String(), formatTime(sourceTimestamp))
+		fmt.Printf("[OK] Tag '%s' already points to the correct image.\n\tSource: %s %s\n", newTag, formatTime(sourceTimestamp), formatDigest(sourceDigest))
 		return
 	}
 
@@ -78,9 +77,9 @@ func retagImage(cmd *cobra.Command, args []string) {
 	// Step 5: Final, message.
 	fromMsg := ""
 	if err == nil {
-		fromMsg = fmt.Sprintf(" (was %s, created %s)", destDigest.String(), formatTime(destTimestamp))
+		fromMsg = fmt.Sprintf("\n\tTarget: %s %s", formatTime(destTimestamp), formatDigest(destDigest))
 	}
-	fmt.Printf("[OK] Successfully pointed tag '%s' to %s (created %s)%s.\n", newTag, sourceDigest.String(), formatTime(sourceTimestamp), fromMsg)
+	fmt.Printf("[OK] Successfully pointed tag '%s' to new image.\n\tSource: %s %s%s\n", newTag, formatTime(sourceTimestamp), formatDigest(sourceDigest), fromMsg)
 }
 
 // extract the digest and creation timestamp
@@ -90,10 +89,19 @@ func getImageDetails(img v1.Image) (v1.Hash, time.Time) {
 	return digest, configFile.Created.Time
 }
 
+// shorten digest for readability
+func formatDigest(d v1.Hash) string {
+	digestStr := d.String()
+	if len(digestStr) > 12 {
+		return digestStr[:12]
+	}
+	return digestStr
+}
+
 // human-friendly time string
 func formatTime(t time.Time) string {
 	if t.IsZero() {
 		return "unknown"
 	}
-	return timeago.English.Format(t)
+	return t.Format("2006-01-02 15:04:05")
 }
