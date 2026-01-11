@@ -17,16 +17,55 @@ runs:
       shell: bash
       run: |
         REPO="abgoyal/docker-retag"
-        LATEST_API_URL="https://api.github.com/repos/$REPO/releases/latest"
 
-        echo "Fetching latest release data from $REPO..."
+        # Retry function with exponential backoff
+        retry_curl() {
+          local url="$1"
+          local output="$2"
+          local max_attempts=5
+          local attempt=1
+          local delay=2
+
+          while [ $attempt -le $max_attempts ]; do
+            if [ -n "$output" ]; then
+              if curl -sL --fail -o "$output" "$url"; then
+                return 0
+              fi
+            else
+              local response
+              response=$(curl -sL --fail "$url") && echo "$response" && return 0
+            fi
+
+            echo "Attempt $attempt/$max_attempts failed. Retrying in ${delay}s..."
+            sleep $delay
+            attempt=$((attempt + 1))
+            delay=$((delay * 2))
+          done
+
+          echo "Error: All $max_attempts attempts failed for $url"
+          return 1
+        }
+
+        # Determine which version to download based on action ref
+        ACTION_REF="${{ github.action_ref }}"
+        if [ -z "$ACTION_REF" ] || [ "$ACTION_REF" = "main" ] || [ "$ACTION_REF" = "master" ]; then
+          # Fallback to latest release for branch refs
+          RELEASE_API_URL="https://api.github.com/repos/$REPO/releases/latest"
+          echo "Using latest release (action ref: ${ACTION_REF:-unset})..."
+        else
+          # Use specific release matching the action tag
+          RELEASE_API_URL="https://api.github.com/repos/$REPO/releases/tags/$ACTION_REF"
+          echo "Using release $ACTION_REF..."
+        fi
+
+        echo "Fetching release data from $REPO..."
         # Store the API response to avoid multiple calls
-        API_RESPONSE=$(curl -s $LATEST_API_URL)
+        API_RESPONSE=$(retry_curl "$RELEASE_API_URL") || exit 1
 
         # Extract the tag name (e.g., "v0.0.6") from the release data
         TAG=$(echo "$API_RESPONSE" | jq -r ".tag_name")
         if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
-          echo "Error: Could not determine latest release tag."
+          echo "Error: Could not determine release tag from API response."
           exit 1
         fi
 
@@ -64,7 +103,7 @@ runs:
 
         echo "Downloading from $DOWNLOAD_URL..."
         # Download the binary and name it 'docker-retag' for execution
-        curl -sL -o docker-retag "$DOWNLOAD_URL"
+        retry_curl "$DOWNLOAD_URL" "docker-retag" || exit 1
 
         # Make executable (not needed for .exe on Windows)
         if [ "$RUNNER_OS" != "windows" ]; then
