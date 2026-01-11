@@ -11,6 +11,37 @@ It is idempotent, fast, and designed for CI/CD automation.
 -   **Idempotent:** If the tag already points to the correct image, the tool reports success and does nothing.
 -   **Seamless Authentication:** Automatically uses credentials from official login actions for ECR, GCR, Docker Hub, and more.
 -   **CI/CD Native:** Provides clear, single-line output, with audit details like creation timestamps, ideal for CI/CD.
+-   **Reliable:** Built-in retry mechanism with exponential backoff for transient failures.
+-   **Version Pinned:** When using a specific action version (e.g., `@v1.0.0`), the matching binary version is downloaded.
+
+## CLI Usage
+
+The tool can also be used standalone from the command line.
+
+```bash
+docker-retag <source-image> <new-tag> [flags]
+```
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Validate inputs and check registry connectivity without making changes |
+| `--version` | Show version, commit hash, and build time |
+| `--help` | Show help message |
+
+### Examples
+
+```bash
+# Retag an image
+docker-retag myregistry.io/app:build-123 production
+
+# Preview what would happen without making changes
+docker-retag --dry-run myregistry.io/app:build-123 production
+
+# Show version info
+docker-retag --version
+```
 
 ## How to Use as a GitHub Action
 

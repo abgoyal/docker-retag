@@ -83,20 +83,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PACKAGE_NAME="${{ github.event.repository.name }}-test"
-          echo "Cleaning up test images..."
-          VERSIONS=$(gh api \
+          echo "Cleaning up test package..."
+          # Delete the entire package (cleaner than deleting individual versions)
+          gh api \
+            --method DELETE \
             -H "Accept: application/vnd.github+json" \
-            /user/packages/container/${PACKAGE_NAME}/versions \
-            --jq '.[].id' 2>/dev/null || echo "")
-          if [ -n "$VERSIONS" ]; then
-            for VERSION_ID in $VERSIONS; do
-              echo "Deleting version $VERSION_ID..."
-              gh api \
-                --method DELETE \
-                -H "Accept: application/vnd.github+json" \
-                /user/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID} || true
-            done
-          fi
+            /user/packages/container/${PACKAGE_NAME} || true
           echo "Cleanup complete"
 
   release:
