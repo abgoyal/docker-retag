@@ -5,8 +5,102 @@ on:
     tags:
       - 'v*'
 
+env:
+  TEST_IMAGE: ghcr.io/${{ github.repository }}-test
+
 jobs:
-  goreleaser:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      # Build with goreleaser (same as release, but don't publish)
+      - name: Build with GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --skip=publish --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Find the linux amd64 binary
+      - name: Locate binary
+        id: binary
+        run: |
+          BINARY=$(find dist -type f -name "docker-retag_linux_amd64_*" ! -name "*.exe" | head -1)
+          echo "path=$BINARY" >> $GITHUB_OUTPUT
+          echo "Found binary: $BINARY"
+
+      # Stage 1: Smoke test
+      - name: Smoke test - version
+        run: ${{ steps.binary.outputs.path }} --version
+
+      - name: Smoke test - help
+        run: ${{ steps.binary.outputs.path }} --help
+
+      # Stage 2: Dry-run test against a public image
+      - name: Dry-run test
+        run: ${{ steps.binary.outputs.path }} --dry-run alpine:latest test-tag
+
+      # Stage 3: Integration test using GHCR
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push test image
+        run: |
+          docker pull alpine:latest
+          docker tag alpine:latest ${{ env.TEST_IMAGE }}:source-${{ github.sha }}
+          docker push ${{ env.TEST_IMAGE }}:source-${{ github.sha }}
+
+      - name: Integration test - retag image
+        run: ${{ steps.binary.outputs.path }} ${{ env.TEST_IMAGE }}:source-${{ github.sha }} test-target-${{ github.sha }}
+
+      - name: Verify retag succeeded
+        run: |
+          docker pull ${{ env.TEST_IMAGE }}:test-target-${{ github.sha }}
+          echo "Integration test passed!"
+
+      - name: Cleanup test images from GHCR
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PACKAGE_NAME="${{ github.event.repository.name }}-test"
+          echo "Cleaning up test images..."
+          VERSIONS=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            /user/packages/container/${PACKAGE_NAME}/versions \
+            --jq '.[].id' 2>/dev/null || echo "")
+          if [ -n "$VERSIONS" ]; then
+            for VERSION_ID in $VERSIONS; do
+              echo "Deleting version $VERSION_ID..."
+              gh api \
+                --method DELETE \
+                -H "Accept: application/vnd.github+json" \
+                /user/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID} || true
+            done
+          fi
+          echo "Cleanup complete"
+
+  release:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -29,4 +123,3 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

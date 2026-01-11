@@ -15,7 +15,7 @@ builds:
       - arm64
     main: ./
     ldflags:
-      - -s -w
+      - -s -w -X main.version={{ .Tag }} -X main.commit={{ .ShortCommit }} -X main.buildTime={{ .Date }}
 
 archives:
   -

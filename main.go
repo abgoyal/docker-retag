@@ -13,10 +13,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Build info set at build time via ldflags
+var (
+	version   = "dev"
+	commit    = "none"
+	buildTime = "unknown"
+)
+
+var dryRun bool
+
 func main() {
 	var rootCmd = &cobra.Command{
-		Use:   "docker-retag <source-image> <new-tag>",
-		Short: "An idempotent tool to point a remote container tag at a new source image.",
+		Use:     "docker-retag <source-image> <new-tag>",
+		Short:   "An idempotent tool to point a remote container tag at a new source image.",
+		Version: fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, buildTime),
 		Long: `docker-retag efficiently updates a remote tag (e.g., :prod, :staging) to point
 to the manifest of a new source image (e.g., :build-12345).
 
@@ -28,6 +38,8 @@ It is designed for CI/CD pipelines:
 		Args: cobra.ExactArgs(2),
 		Run:  retagImage,
 	}
+
+	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate inputs and check registry connectivity without making changes")
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -68,13 +80,25 @@ func retagImage(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// Step 4: Perform the tag operation. This will create or overwrite the tag.
+	// Step 4: In dry-run mode, report what would happen and exit.
+	if dryRun {
+		if err == nil {
+			fmt.Printf("[DRY-RUN] Would point tag '%s' to new image.\n\tSource: %s %s\n\tTarget: %s %s\n",
+				newTag, formatTime(sourceTimestamp), formatDigest(sourceDigest), formatTime(destTimestamp), formatDigest(destDigest))
+		} else {
+			fmt.Printf("[DRY-RUN] Would create tag '%s' pointing to image.\n\tSource: %s %s\n",
+				newTag, formatTime(sourceTimestamp), formatDigest(sourceDigest))
+		}
+		return
+	}
+
+	// Step 5: Perform the tag operation. This will create or overwrite the tag.
 	if err := crane.Tag(sourceImageStr, newTag, crane.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
 		fmt.Fprintf(os.Stderr, "[FAIL] Error: Failed to point tag '%s' to new image: %v\n", newTag, err)
 		os.Exit(1)
 	}
 
-	// Step 5: Final, message.
+	// Step 6: Final message.
 	fromMsg := ""
 	if err == nil {
 		fromMsg = fmt.Sprintf("\n\tTarget: %s %s", formatTime(destTimestamp), formatDigest(destDigest))

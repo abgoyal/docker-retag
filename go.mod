@@ -1,6 +1,6 @@
 module github.com/abgoyal/docker-retag
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/google/go-containerregistry v0.20.6
