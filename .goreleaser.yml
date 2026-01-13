@@ -39,4 +39,4 @@ release:
   # 'auto' means it will be marked as a pre-release if the tag is a pre-release
   # (e.g., v1.0.0-beta1) and a full release otherwise.
   prerelease: auto
-
+  replace_existing_artifacts: true
