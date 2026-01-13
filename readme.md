@@ -243,3 +243,15 @@ This repository uses `goreleaser` and GitHub Actions to automate releases.
 
 Users of the action can then update their workflows to use the new version (e.g., `uses: abgoyal/retag@v1.1.0`).
 
+5.  **Release major-version (@vN) tag:** for user convenience, for non breaking changes, trigger an update to your major version (@v1/@v2 etc) tags, so users can refer to the action with just @v1 instead of @v1.2.3, and automatically use non breaking updates.
+
+    ```
+    # force update the public tag:
+    git tag -f v1 v0.9.7
+
+    # force push the public tag:
+    git push --force origin v1
+    ```
+
+Users who use the major version (`uses: abgoyal/docker-retag@v1`) will now automatically recieve the updated action
+
